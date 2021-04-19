@@ -1,0 +1,233 @@
+<!DOCTYPE html><html lang="en" class=" ytguomypr idc0_328">
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="apple-mobile-web-app-title" content="Properties Utils">
+    <title>Properties File Utils</title>
+
+    <style>
+        textarea {
+            width:45%;
+            margin:2%;
+            min-height:50vh;
+            display:inline;
+        }
+        #result {
+            border:1px solid red;
+        }
+        del {
+            background:red;
+        }
+        ins {
+            background: green;
+        }
+    </style>
+
+    <script>
+        window.console = window.console || function(t) {};
+    </script>
+
+
+
+    <script>
+        if (document.location.search.match(/type=embed/gi)) {
+            window.parent.postMessage("resize", "*");
+        }
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js" type="text/javascript"></script>
+
+</head>
+
+<body translate="no">
+<textarea id="text1">test.property.access.invalid=You've tried to access a something that you don't have access to.
+test.property.access.valid=Validation Successful
+test.property.access.id.invalid=ID must be 10 digits
+
+home.link.details=Details
+home.link.delete=Delete
+home.link.update=Update
+home.link.generalSetup=General Setup</textarea>
+
+<textarea id="text2">home.table.option.loadmore=LOAD MORE
+home.table.option.delete=This will delete the item. Continue?
+################## HOME GENERIC LABELS ##################
+
+test.property.access.invalid=You've tried to access a something that you don't have access to.
+home.link.delete=Delete
+home.link.update=Update
+home.link.generalSetup=General Setup
+</textarea>
+
+
+<div id="actionDiv">
+    <select name="fileAction" id="actionSelector">
+        <option value="1">Display Keys that appear in File 1, but not File 2</option>
+        <option value="2">Display Keys that appear in File 2, but not File 1</option>
+        <option value="3">Display Keys & Values that appear in File 1, but not File 2</option>
+        <option value="4">Display Keys & Values that appear in File 2, but not File 1</option>
+    </select>
+
+    <button onClick="runComparison()">RUN</button>
+</div>
+
+<div id="result">
+    <pre id="result-pre"></pre>
+</div>
+
+<script>
+    $(document).ready(function () {
+        console.log("hello mate");
+    });
+
+    /**
+     * Function to determine all keys that appear in the parent file, but
+     * do not appear in the child file.
+     * @param parentFile {string} Multi-line text in the format of "key=value"
+     * @param childFile {string} Multi-line text in the format of "key=value"
+     * @param removeValues {boolean} Determines if the values will be removed before returning for output
+     * @returns {Array} All key/values missing from the child file
+     */
+    function findKeyDifferences(parentFile, childFile, removeValues) {
+        // Check the keys that are missing from the child file
+
+        let parentFileLines = parentFile.split("\n");
+        console.log(parentFileLines);
+
+        let childFileLines = childFile.split("\n");
+        console.log(childFileLines);
+
+        // Remove the values from the key=value strings
+        // Remove any commented out lines
+        parentFileLines = cleanPropertyArray(parentFileLines, removeValues);
+        childFileLines = cleanPropertyArray(childFileLines, removeValues);
+
+        let keysInParentMissingFromChild = [];
+        if(removeValues) {
+            // Check keys missing from the child file
+            for (let i = 0; i < parentFileLines.length; i++) {
+                if (parentFileLines[i] !== undefined && !childFileLines.includes(parentFileLines[i])) {
+                    keysInParentMissingFromChild.push(parentFileLines[i]);
+                }
+            }
+        } else {
+            // The values have NOT been removed.
+            // If the two files are a different language, this it makes the regular check for missing keys obsolete
+
+            // Convert the key/values to a map
+            let parentKeyValueMap = convertLineArrayToKeyValueMap(parentFileLines);
+            let childKeyValueMap = convertLineArrayToKeyValueMap(childFileLines);
+
+            // Now match the parent keys against the child keys to determine the missing ones
+            for (const [key, value] of parentKeyValueMap.entries()) {
+                if(!childKeyValueMap.has(key)){
+                    keysInParentMissingFromChild.push(key + value);
+                }
+            }
+        }
+
+        // Return keys/values missing from child file
+        return keysInParentMissingFromChild;
+    }
+
+    /**
+     * Converts an array that contains key value strings (separated by '=' symbol)
+     * into a {Map} using the same key/value structure
+     * @param lineArray {Array} consisting of strings that contain key/values in the format of "key=value"
+     * @returns {Map} properties key/values split into a key value map
+     */
+    function convertLineArrayToKeyValueMap(lineArray){
+        // Convert the key/values to a map
+        let keyValueMap = new Map();
+        for (let i = 0; i < lineArray.length; i++) {
+            if (lineArray[i] !== undefined) {
+                // Split the string using the =
+                let indexOfEquals = lineArray[i].indexOf("=");
+                if(indexOfEquals > 0) {
+                    let key = lineArray[i].substring(0, indexOfEquals);
+                    let value = lineArray[i].substring(indexOfEquals);
+                    keyValueMap.set(key, value);
+                }
+            }
+        }
+        return keyValueMap;
+    }
+
+    /**
+     * Runs the comparison tool based on the selection from the user.
+     */
+    function runComparison(){
+        // Clear output
+        $('#result-pre').html("");
+
+        // Decide operation
+        let selectedAction = $("#actionSelector" ).val();
+
+        let prop1Text = $('textarea#text1').val();
+        let prop2Text = $('textarea#text2').val();
+
+        let outputHtml = "";
+        let results = "";
+        if(selectedAction === "1"){
+            // Display Keys that appear in File 1, but not File 2
+            results = findKeyDifferences(prop1Text, prop2Text, true);
+            outputHtml = createHeading(results, false, 2)
+        } else  if (selectedAction === "2"){
+            // Display Keys that appear in File 2, but not File 1
+            results = findKeyDifferences(prop2Text, prop1Text, true);
+            outputHtml = createHeading(results, false, 1)
+        } else if (selectedAction === "3"){
+            // Display Keys & Values that appear in File 1, but not File 2
+            results = findKeyDifferences(prop1Text, prop2Text, false);
+            outputHtml = createHeading(results, true, 2)
+        } else {
+            // Display Keys & Values that appear in File 2, but not File 1
+            results = findKeyDifferences(prop2Text, prop1Text, false);
+            outputHtml = createHeading(results, true, 1)
+        }
+
+        $('#result-pre').html(outputHtml);
+    }
+
+
+    /**
+     * Cleans the array containing all lines from the supplied property file
+     * @param propArray {Array} Property file in the format of a string array
+     * @param removeValues {Boolean} Flag to determine if the Values are removed from each line
+     *                                     i.e. The string after the '=' symbol
+     * @returns {Array} Containing the sanitized strings
+     */
+    function cleanPropertyArray(propArray, removeValues){
+        // REMOVE lines beginning with #
+        for(var i = 0; i < propArray.length; i++){
+            if(propArray[i].trim().substring(0,1) === "#"){
+                // remove line from array
+                propArray.splice(i, 1);
+            }
+            // Remove values after =
+            if(removeValues) {
+                if (propArray[i] !== "" && propArray[i] !== undefined && propArray[i].indexOf("=") > 0) {
+                    propArray[i] = propArray[i].substring(0, propArray[i].indexOf("="));
+                }
+            }
+        }
+        return propArray;
+    }
+
+    /**
+     * Creates the output HTML that the user sees
+     * @param results {Array} of key/value strings
+     * @param isKeysAndValues {Boolean} indicates whether the heading displays KEYS&VALUES or just KEYS
+     * @param missingFromNumber {int} File number display
+     * @returns {string}
+     */
+    function createHeading(results, isKeysAndValues, missingFromNumber){
+        let keysAndValuesString = isKeysAndValues ? "KEYS & VALUES" : "KEYS";
+        return  "<br/>" +
+            "<strong>Property " + keysAndValuesString + " missing from Property File " + missingFromNumber + "</strong>"
+            + " <br/>===================================<br/>"
+            + results.join("<br/>") + "<br/>";
+    }
+
+</script>
+</body></html>
